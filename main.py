@@ -100,9 +100,69 @@ def extract_dates_from_text(text):
     matches = re.findall(date_pattern, text, re.IGNORECASE)
     return matches
 
+def generate_sber_auth_data(user_id, secret):
+        return {"user_id": user_id, "secret": secret}
+
+#from langchain_community.chat_models import GigaChat
+from langchain_gigachat.chat_models import GigaChat
+import config
+
+os.environ["LANGCHAIN_TRACING_V2"] = "true"
+
+llm = GigaChat(
+    credentials=config.GIGA_CHAT_AUTH, 
+    verify_ssl_certs=False,
+    scope = config.GIGA_CHAT_SCOPE)
+
+from typing import Optional
+from pydantic import BaseModel, Field
+
+class Customer(BaseModel):
+    """АНКЕТА ЛИЗИНГОПОЛУЧАТЕЛЯ."""
+
+    form_date: Optional[str] = Field(default='ND', description='Дата заполнения')
+    customer_name: Optional[str] = Field(default='ND', description='Наименование Лизингополучателя')
+    ceo_name: Optional[str] = Field(default='ND', description='ФИО (ЕИО) - ФИО Единого Исполнительного Органа')
+    contact_name: Optional[str] = Field(default='ND', description='Контактное лицо (ФИО)')
+
+
+
+def extract_client_data_from_pdf(pdf_path, output_excel='result.xlsx'):
+    try:
+        # Инициализация списка для хранения результатов
+        full_content = []
+        # Открываем PDF-файл
+        with fitz.open(pdf_path) as doc:
+            for page_num in range(len(doc)):
+                page = doc.load_page(page_num)
+                text = page.get_text()
+                full_content.append(text)
+
+                # Извлечение изображений и OCR
+                image_list = page.get_images(full=True)
+                for img_index, img in enumerate(image_list):
+                    xref = img[0]
+                    base_image = doc.extract_image(xref)
+                    image_bytes = base_image["image"]
+                    image = Image.open(io.BytesIO(image_bytes))
+
+                    # Применяем OCR к изображению
+                    ocr_text = pytesseract.image_to_string(image, lang='rus')
+                    full_content.append(ocr_text)
+
+        content = '\n==================================================\n'.join(full_content)
+        structured_llm = llm.with_structured_output(Customer)
+        data = structured_llm.invoke(content)
+        print(data)
+
+    except Exception as e:
+        print(f"Ошибка при обработке файла {pdf_path}: {e}")
+
+
 if __name__ == "__main__":
     # Пример использования функции
     pdf_file = 'example.pdf'  # Замените на путь к вашему PDF-файлу
     add_tesseract_to_path()
 
-    extract_dates_from_pdf(pdf_file)
+    #extract_dates_from_pdf(pdf_file)
+    extract_client_data_from_pdf(pdf_file)

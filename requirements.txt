@@ -3,3 +3,6 @@ pytesseract
 Pillow
 pandas
 openpyxl
+langchain_community
+langchain-gigachat
+gigachat
