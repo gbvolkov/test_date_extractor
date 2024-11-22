@@ -4,5 +4,6 @@ Pillow
 pandas
 openpyxl
 langchain_community
+langchain_openai
 langchain-gigachat
 gigachat

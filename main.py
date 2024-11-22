@@ -8,6 +8,17 @@ from datetime import datetime
 import os
 import os
 import sys
+#from langchain_community.chat_models import GigaChat
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_gigachat.chat_models import GigaChat
+from langchain_openai import ChatOpenAI
+from typing import Optional, List
+from pydantic import BaseModel, Field
+
+import config
+
+os.environ["LANGCHAIN_TRACING_V2"] = "true"
+
 
 def add_tesseract_to_path():
     """
@@ -103,19 +114,91 @@ def extract_dates_from_text(text):
 def generate_sber_auth_data(user_id, secret):
         return {"user_id": user_id, "secret": secret}
 
-#from langchain_community.chat_models import GigaChat
-from langchain_gigachat.chat_models import GigaChat
-import config
 
-os.environ["LANGCHAIN_TRACING_V2"] = "true"
+class Company(BaseModel):
+    """Компания группы"""
 
-llm = GigaChat(
-    credentials=config.GIGA_CHAT_AUTH, 
-    verify_ssl_certs=False,
-    scope = config.GIGA_CHAT_SCOPE)
+    company_name: Optional[str] = Field(default='ND', description='Наименование')
+    company_inn: Optional[str] = Field(default='ND', description='ИНН')
 
-from typing import Optional
-from pydantic import BaseModel, Field
+class BusinessType(BaseModel):
+    """Вид деятельности Лизингополучателя"""
+
+    business_name: Optional[str] = Field(default='ND', description='Вид деятельности')
+    business_ratio: Optional[str] = Field(default='ND', description='Доля в структуре выручки')
+
+class PersonalDocumentInfo(BaseModel):
+    """Сведения о документе, удостоверяющем личность"""
+
+    name: Optional[str] = Field(default='ND', description='Наименование')
+    seria: Optional[str] = Field(default='ND', description='Серия')
+    number: Optional[str] = Field(default='ND', description='Номер')
+    issue_date: Optional[str] = Field(default='ND', description='Дата выдачи')
+    issuer: Optional[str] = Field(default='ND', description='Кем выдан')
+    issuer_dep: Optional[str] = Field(default='ND', description='Код подразделения')
+    registration_address: Optional[str] = Field(default='ND', description='Адрес регистрации')
+
+class CEOInfo(BaseModel):
+    """ИНФОРМАЦИЯ О ЕДИНОМ ИСПОЛНИТЕЛЬНОМ ОРГАНЕ"""
+
+    managing_company: Optional[str] = Field(default='ND', description='Управляющая компания')
+    name: Optional[str] = Field(default='ND', description='ФИО')
+    birthday: Optional[str] = Field(default='ND', description='Дата рождения')
+    citizenship: Optional[str] = Field(default='ND', description='Гражданство')
+    inn: Optional[str] = Field(default='ND', description='ИНН')
+    email: Optional[str] = Field(default='ND', description='E-mail')
+    phone: Optional[str] = Field(default='ND', description='Телефон')
+    birthplace: Optional[str] = Field(default='ND', description='Место рождения')
+    personal_document: Optional[PersonalDocumentInfo] = Field(..., description="Сведения о документе, удостоверяющем личность")
+    is_beneficiary_owner: Optional[bool] = Field(default=False, description='Является бенефициарным владельцем')
+    is_foreighn_official: Optional[bool] = Field(default=False, description='Не является иностранным публичным должностным лицом или родтственником')
+    is_international_official: Optional[bool] = Field(default=False, description='Не является должностным лицом публичных международных организаций')
+    is_local_official: Optional[bool] = Field(default=False, description='Не является публичным должностным лицом Российской Федерации')
+
+class CustomerBusiness(BaseModel):
+    """ИНФОРМАЦИЯ О БИЗНЕСЕ ЛИЗИНГОПОЛУЧАТЕЛЯ"""
+
+    employees_count: Optional[int] = Field(default='ND', description='Численность сотрудников')
+    is_group: Optional[bool] = Field(default=True, description='Входит ли в группу взаимосвязанных компаний?')
+    group_companies: Optional[List[Company]] = Field(..., description="Перечень компаний группы")
+    businesses: Optional[List[BusinessType]] = Field(..., description="Основные виды деятельности Лизингополучателя")
+    comment: Optional[str] = Field(default='ND', description='Комментарий к виду деятельности')
+    is_online: Optional[bool] = Field(default=True, description='Есть сайт и/или страницы в социальных сетях')
+
+
+class BeneficiaryInfo(BaseModel):
+    """Сведения о бенефициарных владельцах"""
+
+    name: Optional[str] = Field(default='ND', description='ФИО')
+    birthday: Optional[str] = Field(default='ND', description='Дата рождения')
+    citizenship: Optional[str] = Field(default='ND', description='Гражданство')
+    inn: Optional[str] = Field(default='ND', description='ИНН')
+    capital_ratio: Optional[str] = Field(default='ND', description='Доля в уставном капитале (%)')
+    birthplace: Optional[str] = Field(default='ND', description='Место рождения')
+    personal_document: Optional[PersonalDocumentInfo] = Field(..., description="Сведения о документе, удостоверяющем личность")
+
+class DebtInto(BaseModel):
+    """ИНФОРМАЦИЯ О ЗАДОЛЖЕННОСТИ"""
+
+    debt_type: Optional[str] = Field(default='ND', description='Вид обязательств')
+    creditor: Optional[str] = Field(default='ND', description='Кредитор')
+    currency: Optional[str] = Field(default='ND', description='Валюта')
+    start_date: Optional[str] = Field(default='ND', description='Дата выдачи')
+    end_date: Optional[str] = Field(default='ND', description='Дата окончания')
+    debt_amount: Optional[str] = Field(default='ND', description='Сумма договора')
+    debt_due: Optional[str] = Field(default='ND', description='Остаток задолженности')
+    debt_outstanding: Optional[str] = Field(default='ND', description='Сумма к погашению')
+    debt_collateral: Optional[str] = Field(default='ND', description='Обеспечение')
+
+class DebtTotalInto(BaseModel):
+    """ИНФОРМАЦИЯ О ТИПЕ ЗАДОЛЖЕННОСТИ"""
+
+    debt_type: Optional[str] = Field(default='ND', description='Вид обязательств')
+    debts: Optional[List[DebtInto]] = Field(..., description="ИНФОРМАЦИЯ О ЗАДОЛЖЕННОСТИ]")
+    debt_total_amount: Optional[str] = Field(default='ND', description='Общая сумма договора по типу задолженности')
+    debt_due: Optional[str] = Field(default='ND', description='Общий остаток задолженности по типу задолженности')
+    debt_outstanding: Optional[str] = Field(default='ND', description='Общая сумма к погашению по типу задолженности')
+
 
 class Customer(BaseModel):
     """АНКЕТА ЛИЗИНГОПОЛУЧАТЕЛЯ."""
@@ -124,8 +207,42 @@ class Customer(BaseModel):
     customer_name: Optional[str] = Field(default='ND', description='Наименование Лизингополучателя')
     ceo_name: Optional[str] = Field(default='ND', description='ФИО (ЕИО) - ФИО Единого Исполнительного Органа')
     contact_name: Optional[str] = Field(default='ND', description='Контактное лицо (ФИО)')
+    contact_phone: Optional[str] = Field(default='ND', description='Телефон контактного лица')
+    contact_phone: Optional[str] = Field(default='ND', description='Телефон контактного лица')
+    contact_email: Optional[str] = Field(default='ND', description='E-mail контактного лица')
+    customer_phone: Optional[str] = Field(default='ND', description='Телефон организации')
+    customer_inn: Optional[str] = Field(default='ND', description='ИНН Лизингополучателя')
+    customer_ogrn: Optional[str] = Field(default='ND', description='ОГРН Лизингополучателя')
+    customer_tax_method: Optional[str] = Field(default='ND', description='Система налогообложения')
+    customer_post_address: Optional[str] = Field(default='ND', description='Фактический адрес')
+    customer_official_address: Optional[str] = Field(default='ND', description='Почтовый адрес')
+    customer_email: Optional[str] = Field(default='ND', description='E-mail Лизингополучателя')
+    customer_email: Optional[str] = Field(default='ND', description='E-mail Лизингополучателя')
+    cert_center: Optional[str] = Field(default='ND', description='Предпочтительный провайдер ЭЦП')
+    is_beneficiary: Optional[bool] = Field(default=True, description='Является выгодоприобретателем')
+    customer_business_info: Optional[CustomerBusiness] = Field(..., description="Информация о бизнесе Лизингополучателя")
+    ceo_info: Optional[CEOInfo] = Field(..., description="ИНФОРМАЦИЯ О ЕДИНОМ ИСПОЛНИТЕЛЬНОМ ОРГАНЕ")
+    beneficiaries: Optional[List[BeneficiaryInfo]] = Field(default=None,  description="Сведения о бенефициарных владельцах")
+    debts: Optional[List[DebtTotalInto]] = Field(default=None, description="ИНФОРМАЦИЯ О КРЕДИТНОЙ ИСТОРИИ И ДОЛГОВОЙ НАГРУЗКЕ]")
 
 
+prompt_text = """
+Extract the desired information from the following passage.
+
+Only extract the properties mentioned in the 'Customer' function.
+
+Contract:
+{form}
+"""
+
+#llm = GigaChat(
+#    credentials=config.GIGA_CHAT_AUTH, 
+#    verify_ssl_certs=False,
+#    scope = config.GIGA_CHAT_SCOPE)
+llm = ChatOpenAI(openai_api_key=config.OPENAI_API_KEY, model='gpt-4o-mini', temperature=0.1)
+prompt = ChatPromptTemplate.from_template(prompt_text)
+structured_llm = llm.with_structured_output(Customer)
+recogn_chain = prompt | structured_llm
 
 def extract_client_data_from_pdf(pdf_path, output_excel='result.xlsx'):
     try:
@@ -151,8 +268,8 @@ def extract_client_data_from_pdf(pdf_path, output_excel='result.xlsx'):
                     full_content.append(ocr_text)
 
         content = '\n==================================================\n'.join(full_content)
-        structured_llm = llm.with_structured_output(Customer)
-        data = structured_llm.invoke(content)
+        
+        data = recogn_chain.invoke(content)
         print(data)
 
     except Exception as e:
